@@ -900,29 +900,63 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authView, setAuthView] = useState('login');
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [brandMenuOpen, setBrandMenuOpen] = useState(false);
   const [activeNav, setActiveNav] = useState('dashboard');
   const [campaigns, setCampaigns] = useState(INITIAL_CAMPAIGNS);
   const [keywords] = useState(INITIAL_KEYWORDS);
+  const [brands, setBrands] = useState([]);
+  const [selectedBrand, setSelectedBrand] = useState(null);
+  const [loadingBrands, setLoadingBrands] = useState(false);
+
+  const fetchBrands = async () => {
+    setLoadingBrands(true);
+    try {
+      const res = await fetch('http://localhost:5000/api/profiles');
+      const data = await res.json();
+      if (data.success && data.profiles) {
+        setBrands(data.profiles);
+        setSelectedBrand(data.profiles[0]);
+      }
+    } catch (err) {
+      console.log('API not available, using sample data');
+      const sampleBrands = [
+        { profileId: '1', accountInfo: { name: 'Superbottoms', type: 'seller' } },
+        { profileId: '2', accountInfo: { name: 'Dorje Teas', type: 'seller' } },
+        { profileId: '3', accountInfo: { name: 'One Little Farm', type: 'seller' } },
+      ];
+      setBrands(sampleBrands);
+      setSelectedBrand(sampleBrands[0]);
+    } finally {
+      setLoadingBrands(false);
+    }
+  };
+
+  const handleSignIn = () => {
+    setIsAuthenticated(true);
+    fetchBrands();
+  };
 
   const handleLogout = () => {
     setIsAuthenticated(false);
     setAuthView('login');
     setUserMenuOpen(false);
     setActiveNav('dashboard');
+    setBrands([]);
+    setSelectedBrand(null);
   };
 
   if (!isAuthenticated) {
     if (authView === 'signup') {
       return (
         <SignupPage
-          onSignUp={() => setIsAuthenticated(true)}
+          onSignUp={handleSignIn}
           onGoToLogin={() => setAuthView('login')}
         />
       );
     }
     return (
       <LoginPage
-        onSignIn={() => setIsAuthenticated(true)}
+        onSignIn={handleSignIn}
         onGoToSignup={() => setAuthView('signup')}
       />
     );
@@ -974,7 +1008,9 @@ function App() {
         </nav>
         <div className="sidebar-footer">
           <p className="sidebar-footer-label">Account</p>
-          <p className="sidebar-footer-value">NorthPeak Retail</p>
+          <p className="sidebar-footer-value">
+            {selectedBrand ? selectedBrand.accountInfo.name : 'NorthPeak Retail'}
+          </p>
         </div>
       </aside>
 
@@ -985,6 +1021,60 @@ function App() {
             <span className="topbar-subtitle">Amazon Ads Management</span>
           </div>
           <div className="topbar-right">
+
+            {/* Brand Switcher */}
+            <div className="brand-switcher-wrapper">
+              <button
+                type="button"
+                className="brand-switcher-btn"
+                onClick={() => setBrandMenuOpen((o) => !o)}
+              >
+                <span className="brand-switcher-icon">🏪</span>
+                <span className="brand-switcher-name">
+                  {loadingBrands
+                    ? 'Loading...'
+                    : selectedBrand
+                    ? selectedBrand.accountInfo.name
+                    : 'Select Brand'}
+                </span>
+                <span className="brand-switcher-arrow">▾</span>
+              </button>
+              {brandMenuOpen && (
+                <>
+                  <div
+                    className="user-menu-backdrop"
+                    onClick={() => setBrandMenuOpen(false)}
+                    aria-hidden="true"
+                  />
+                  <div className="brand-dropdown">
+                    <p className="brand-dropdown-label">Switch Brand</p>
+                    {brands.map((brand) => (
+                      <button
+                        key={brand.profileId}
+                        type="button"
+                        className={`brand-dropdown-item ${
+                          selectedBrand?.profileId === brand.profileId
+                            ? 'active'
+                            : ''
+                        }`}
+                        onClick={() => {
+                          setSelectedBrand(brand);
+                          setBrandMenuOpen(false);
+                        }}
+                      >
+                        <span className="brand-item-name">
+                          {brand.accountInfo.name}
+                        </span>
+                        <span className={`brand-item-type type-${brand.accountInfo.type}`}>
+                          {brand.accountInfo.type}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
             <button type="button" className="topbar-btn" aria-label="Notifications">
               <span className="topbar-btn-icon">🔔</span>
             </button>

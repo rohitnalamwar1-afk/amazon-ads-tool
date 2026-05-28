@@ -356,7 +356,47 @@ app.get('/api/reports/summary', async (req, res) => {
     sendError(res, error, 'Failed to generate performance summary');
   }
 });
+// Auth routes
+const { register, login, authMiddleware, adminMiddleware, supabase } = require('./auth');
 
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { email, password, fullName, companyName, role } = req.body;
+    if (!email || !password || !fullName) {
+      return res.status(400).json({ success: false, error: 'Email, password and name are required' });
+    }
+    const user = await register(email, password, fullName, companyName, role);
+    res.json({ success: true, user });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ success: false, error: 'Email and password are required' });
+    }
+    const result = await login(email, password);
+    res.json({ success: true, ...result });
+  } catch (error) {
+    res.status(401).json({ success: false, error: error.message });
+  }
+});
+
+app.get('/api/auth/me', authMiddleware, async (req, res) => {
+  try {
+    const { data: user } = await supabase
+      .from('users')
+      .select('id, email, full_name, company_name, role')
+      .eq('id', req.user.userId)
+      .single();
+    res.json({ success: true, user });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
 app.use((_req, res) => {
   res.status(404).json({ success: false, error: 'Route not found' });
 });
